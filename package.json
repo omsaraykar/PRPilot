@@ -1,0 +1,14 @@
+{
+  "name": "pr-reviewer",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "bun --filter @pr-reviewer/api dev",
+    "dev:web": "bun --filter @pr-reviewer/web dev",
+    "dev:worker": "bun --filter @pr-reviewer/worker dev",
+    "install:all": "bun install"
+  }
+}
