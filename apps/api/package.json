@@ -1,15 +1,16 @@
 {
-  "name": "api",
-  "module": "index.ts",
+  "name": "@pr-reviewer/api",
+  "version": "1.0.0",
   "type": "module",
-  "private": true,
   "scripts": {
-    "typecheck": "bun check"
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "elysia": "^1.0.0",
+    "@pr-reviewer/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^7"
   }
 }
