@@ -1,33 +1,24 @@
 import { Elysia } from "elysia";
-import { sql } from "drizzle-orm";
-import { db } from "./db";
 
-const app = new Elysia()
-    .get("/", () => ({
-        message: "PR Reviewer API is running!",
-    }))
-    .get("/health", () => ({
-        status: "healthy",
-    }))
-    .get("/health/db", async () => {
-        try {
-            await db.execute(sql`SELECT 1`);
+import { env } from "./config/env";
+import { errorHandler } from "./plugins/error-handler";
 
-            return {
-                status: "connected",
-                database: "Neon PostgreSQL",
-            };
-        } catch (error) {
-            console.error("Database connection failed:", error);
+import { healthRoutes } from "./modules/health/health.routes";
+import { usersRoutes } from "./modules/users/users.routes";
 
-            return {
-                status: "error",
-                message: "Database connection failed",
-            };
-        }
-    })
-    .listen(3001);
+const app = new Elysia({
+    name: "pr-reviewer-api",
+})
+    .use(errorHandler)
+    .group("/api", (app) =>
+        app
+            .use(healthRoutes)
+            .use(usersRoutes)
+    )
+    .listen(env.PORT);
 
 console.log(
-    `API running at http://${app.server?.hostname}:${app.server?.port}`,
+    `PR Reviewer API running at http://localhost:${env.PORT}`
 );
+
+export type App = typeof app;
