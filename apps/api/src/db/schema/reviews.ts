@@ -5,6 +5,7 @@ import {
     text,
     timestamp,
     index,
+    uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 import { pullRequests } from "./pull-requests";
@@ -55,5 +56,10 @@ export const reviews = pgTable(
         ),
 
         index("reviews_head_sha_idx").on(table.headSha),
+
+        uniqueIndex("reviews_pr_head_sha_unique").on(
+            table.pullRequestId,
+            table.headSha
+        ),
     ]
 );

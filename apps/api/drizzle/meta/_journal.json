@@ -15,6 +15,13 @@
       "when": 1794565909806,
       "tag": "0001_modern_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794652025872,
+      "tag": "0002_busy_king_cobra",
+      "breakpoints": true
     }
   ]
 }

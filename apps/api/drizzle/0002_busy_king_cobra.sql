@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "reviews_pr_head_sha_unique" ON "reviews" USING btree ("pull_request_id","head_sha");
