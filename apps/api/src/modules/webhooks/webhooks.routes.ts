@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "../../config/env";
+import { githubService } from "../github/github.service";
 
 function verifyGitHubSignature(
     rawBody: Buffer,
@@ -61,14 +62,87 @@ export const webhooksRoutes = new Elysia({
     }
 
     if (event === "pull_request") {
-        console.log("Pull request event:", {
-            action: payload.action,
-            repository: payload.repository?.full_name,
-            number: payload.pull_request?.number,
-            headSha: payload.pull_request?.head?.sha
-        });
+        const supportedActions = [
+            "opened",
+            "synchronize",
+            "reopened",
+            "ready_for_review"
+        ];
 
-        // Next phase: persist the PR and enqueue a review job.
+        if (!supportedActions.includes(payload.action)) {
+            return {
+                success: true,
+                message: `Pull request action ignored: ${payload.action}`
+            };
+        }
+
+        const installationId = payload.installation?.id;
+        const owner = payload.repository?.owner?.login;
+        const repo = payload.repository?.name;
+        const pullNumber = payload.pull_request?.number;
+
+        if (
+            !installationId ||
+            !owner ||
+            !repo ||
+            !pullNumber
+        ) {
+            set.status = 400;
+            return {
+                success: false,
+                message: "Missing pull request or installation information"
+            };
+        }
+
+        try {
+            console.log("Fetching PR using GitHub App:", {
+                installationId,
+                owner,
+                repo,
+                pullNumber
+            });
+            const pullRequest = await githubService.fetchPullRequest({
+                installationId,
+                owner,
+                repo,
+                pullNumber
+            });
+
+            console.log("Pull request fetched successfully:", {
+                repository: `${owner}/${repo}`,
+                number: pullRequest.number,
+                title: pullRequest.title,
+                author: pullRequest.author,
+                headSha: pullRequest.headSha,
+                changedFiles: pullRequest.files.length
+            });
+
+            console.log(
+                "Changed files:",
+                pullRequest.files.map((file) => ({
+                    filename: file.filename,
+                    status: file.status,
+                    additions: file.additions,
+                    deletions: file.deletions
+                }))
+            );
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error("Failed to fetch pull request:", {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+            } else {
+                console.error("Unknown GitHub API error:", error);
+            }
+
+            set.status = 500;
+            return {
+                success: false,
+                message: "Failed to fetch pull request from GitHub"
+            };
+        }
     }
 
     return { success: true, message: "Webhook received" };
