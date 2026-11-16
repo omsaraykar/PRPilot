@@ -10,6 +10,7 @@ interface SavePullRequestInput {
   headSha: string;
   baseSha: string;
   htmlUrl: string;
+  mergedAt?: Date | null;
   githubCreatedAt: Date | null;
   githubUpdatedAt: Date | null;
 }
@@ -31,6 +32,7 @@ export const pullRequestsService = {
           headSha: input.headSha,
           baseSha: input.baseSha,
           htmlUrl: input.htmlUrl,
+          ...(input.mergedAt !== undefined ? { mergedAt: input.mergedAt } : {}),
           githubUpdatedAt: input.githubUpdatedAt,
           updatedAt: new Date()
         }

@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { installations } from "../../db/schema";
 
 interface SaveInstallationInput {
-  githubInstallationId: number;
+  githubInstallationId: number | string;
   accountLogin: string;
   accountType: string;
 }
@@ -32,7 +32,7 @@ export const installationsService = {
     return installation;
   },
 
-  async findByGithubId(githubInstallationId: number) {
+  async findByGithubId(githubInstallationId: number | string) {
     const [installation] = await db
       .select()
       .from(installations)
@@ -45,5 +45,19 @@ export const installationsService = {
       .limit(1);
 
     return installation ?? null;
+  },
+
+  async deleteByGithubId(githubInstallationId: number | string) {
+    const [deleted] = await db
+      .delete(installations)
+      .where(
+        eq(
+          installations.githubInstallationId,
+          String(githubInstallationId)
+        )
+      )
+      .returning();
+
+    return deleted ?? null;
   }
 };

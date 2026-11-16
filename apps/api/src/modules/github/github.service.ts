@@ -62,6 +62,10 @@ export const githubService = {
 
       htmlUrl: pullRequest.html_url,
 
+      mergedAt: pullRequest.merged_at
+        ? new Date(pullRequest.merged_at)
+        : null,
+
       createdAt: pullRequest.created_at
         ? new Date(pullRequest.created_at)
         : null,

@@ -3,13 +3,23 @@ import { repositoriesService } from "../repositories/repositories.service";
 import { pullRequestsService } from "../pull-requests/pull-requests.service";
 import { reviewsService } from "../reviews/reviews.service";
 
-interface PersistPullRequestInput {
-  installationId: number;
+export interface RepositoryInput {
+  id: number | string;
+  name: string;
+  fullName: string;
+  owner?: string;
+  defaultBranch?: string | null;
+  isPrivate: boolean;
+  htmlUrl?: string;
+}
+
+export interface PersistPullRequestInput {
+  installationId: number | string;
   installationAccount: string;
   installationAccountType: string;
 
   repository: {
-    id: number;
+    id: number | string;
     name: string;
     fullName: string;
     owner: string;
@@ -26,9 +36,24 @@ interface PersistPullRequestInput {
     headSha: string;
     baseSha: string;
     htmlUrl: string;
+    mergedAt?: Date | null;
     createdAt: Date | null;
     updatedAt: Date | null;
   };
+}
+
+export interface PersistInstallationInput {
+  installationId: number | string;
+  accountLogin: string;
+  accountType: string;
+  repositories?: RepositoryInput[];
+}
+
+export interface AddRepositoriesInput {
+  installationId: number | string;
+  accountLogin: string;
+  accountType: string;
+  repositories: RepositoryInput[];
 }
 
 export const githubPersistenceService = {
@@ -67,6 +92,7 @@ export const githubPersistenceService = {
       headSha: input.pullRequest.headSha,
       baseSha: input.pullRequest.baseSha,
       htmlUrl: input.pullRequest.htmlUrl,
+      mergedAt: input.pullRequest.mergedAt,
       githubCreatedAt: input.pullRequest.createdAt,
       githubUpdatedAt: input.pullRequest.updatedAt
     });
@@ -75,13 +101,12 @@ export const githubPersistenceService = {
       throw new Error("Failed to save pull request");
     }
 
-    const review = await reviewsService.createOrGet({
-      pullRequestId: pullRequest.id,
-      headSha: input.pullRequest.headSha
-    });
-
-    if (!review) {
-      throw new Error("Failed to create or retrieve review");
+    let review = null;
+    if (input.pullRequest.state === "open" && input.pullRequest.headSha) {
+      review = await reviewsService.createOrGet({
+        pullRequestId: pullRequest.id,
+        headSha: input.pullRequest.headSha
+      });
     }
 
     return {
@@ -90,5 +115,91 @@ export const githubPersistenceService = {
       pullRequest,
       review
     };
+  },
+
+  async persistInstallation(input: PersistInstallationInput) {
+    const installation = await installationsService.upsert({
+      githubInstallationId: input.installationId,
+      accountLogin: input.accountLogin,
+      accountType: input.accountType
+    });
+
+    if (!installation) {
+      throw new Error("Failed to save GitHub installation");
+    }
+
+    const savedRepositories = [];
+    if (input.repositories && input.repositories.length > 0) {
+      for (const repo of input.repositories) {
+        const owner = repo.owner ?? repo.fullName.split("/")[0] ?? input.accountLogin;
+        const htmlUrl = repo.htmlUrl ?? `https://github.com/${repo.fullName}`;
+
+        const savedRepo = await repositoriesService.upsert({
+          installationId: installation.id,
+          githubRepoId: repo.id,
+          name: repo.name,
+          fullName: repo.fullName,
+          owner,
+          defaultBranch: repo.defaultBranch ?? null,
+          isPrivate: repo.isPrivate,
+          htmlUrl
+        });
+
+        if (savedRepo) {
+          savedRepositories.push(savedRepo);
+        }
+      }
+    }
+
+    return {
+      installation,
+      repositories: savedRepositories
+    };
+  },
+
+  async removeInstallation(installationId: number | string) {
+    return installationsService.deleteByGithubId(installationId);
+  },
+
+  async addRepositories(input: AddRepositoriesInput) {
+    const installation = await installationsService.upsert({
+      githubInstallationId: input.installationId,
+      accountLogin: input.accountLogin,
+      accountType: input.accountType
+    });
+
+    if (!installation) {
+      throw new Error("Failed to save GitHub installation");
+    }
+
+    const savedRepositories = [];
+    for (const repo of input.repositories) {
+      const owner = repo.owner ?? repo.fullName.split("/")[0] ?? input.accountLogin;
+      const htmlUrl = repo.htmlUrl ?? `https://github.com/${repo.fullName}`;
+
+      const savedRepo = await repositoriesService.upsert({
+        installationId: installation.id,
+        githubRepoId: repo.id,
+        name: repo.name,
+        fullName: repo.fullName,
+        owner,
+        defaultBranch: repo.defaultBranch ?? null,
+        isPrivate: repo.isPrivate,
+        htmlUrl
+      });
+
+      if (savedRepo) {
+        savedRepositories.push(savedRepo);
+      }
+    }
+
+    return {
+      installation,
+      repositories: savedRepositories
+    };
+  },
+
+  async removeRepositories(repositoryIds: (number | string)[]) {
+    return repositoriesService.deleteManyByGithubIds(repositoryIds);
   }
 };
